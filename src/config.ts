@@ -1,11 +1,11 @@
-import { Regex, type SomeCompanionConfigField } from '@companion-module/base'
+import { Regex, type JsonObject, type SomeCompanionConfigField } from '@companion-module/base';
 
-export interface ModuleConfig {
-	host: string
-	port: number
+export interface ModuleConfig extends JsonObject {
+	host: string;
+	port: number;
 }
 
-export function GetConfigFields(): SomeCompanionConfigField[] {
+export function getConfigFields(): SomeCompanionConfigField[] {
 	return [
 		{
 			type: 'textinput',
@@ -23,5 +23,5 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			max: 65535,
 			default: 8000,
 		},
-	]
+	] as const satisfies SomeCompanionConfigField[];
 }

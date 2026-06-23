@@ -1,16 +1,18 @@
 {
-	"id": "your-module-name",
-	"name": "your-module-name",
-	"shortname": "module-shortname",
-	"description": "A short one line description of your module",
+	"$schema": "https://raw.githubusercontent.com/bitfocus/companion-module-base/refs/heads/main/assets/manifest.schema.json",
+	"type": "connection",
+	"id": "sony-savona",
+	"name": "Sony Savona",
+	"shortname": "Savona",
+	"description": "Support for Sony cameras using the Savona API via @ckohen/savona",
 	"version": "0.0.0",
 	"license": "MIT",
-	"repository": "git+https://github.com/bitfocus/companion-module-your-module-name.git",
-	"bugs": "https://github.com/bitfocus/companion-module-your-module-name/issues",
+	"repository": "git+https://github.com/bitfocus/companion-module-sony-savona.git",
+	"bugs": "https://github.com/bitfocus/companion-module-sony-savona/issues",
 	"maintainers": [
 		{
-			"name": "Your name",
-			"email": "Your email"
+			"name": "Chai Kohen",
+			"email": "chaikohen@gmail.com"
 		}
 	],
 	"runtime": {
@@ -20,7 +22,7 @@
 		"entrypoint": "../dist/main.js"
 	},
 	"legacyIds": [],
-	"manufacturer": "Your company",
-	"products": ["Your product"],
-	"keywords": []
+	"manufacturer": "Sony",
+	"products": ["Savona-compatible cameras"],
+	"keywords": ["savona", "pxw-z190v", "z190v"]
 }

@@ -1,3 +1,3 @@
-## Your module
+## Sony Savona
 
-Write some help for your users here!
+Control Sony cameras that expose the Savona API.
