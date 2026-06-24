@@ -23,7 +23,7 @@
 		"yarn": "^4"
 	},
 	"dependencies": {
-		"@ckohen/savona": "0.1.0",
+		"@ckohen/savona": "0.1.1",
 		"@companion-module/base": "^2.0.4"
 	},
 	"devDependencies": {

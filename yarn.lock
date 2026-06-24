@@ -5,16 +5,16 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@ckohen/savona@npm:0.1.0":
-  version: 0.1.0
-  resolution: "@ckohen/savona@npm:0.1.0"
+"@ckohen/savona@npm:0.1.1":
+  version: 0.1.1
+  resolution: "@ckohen/savona@npm:0.1.1"
   dependencies:
     "@msgpack/msgpack": "npm:^3.1.3"
     "@vladfrangu/async_event_emitter": "npm:^2.4.7"
     digest-fetch: "npm:^3.1.1"
     ws: "npm:^8.21.0"
     xml2js: "npm:^0.6.2"
-  checksum: 10c0/a123d401f7b9d7e1c554dca3aa203e424141a9fd53bb62bce92dcb47f702e8614a1e116e1cb993ecffd0bf551a6bc70efff2e46190d82e37edaed60e9ebbd59b
+  checksum: 10c0/cc4763cd367b968b2383d21e83d5e9426fb1800e4aa2d924a235e60a272f5751472ff3715182a0947d9d52e86b80a04ef75086eaa5c4b41f7071dcd0578021a3
   languageName: node
   linkType: hard
 
@@ -1680,7 +1680,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "sony-savona@workspace:."
   dependencies:
-    "@ckohen/savona": "npm:0.1.0"
+    "@ckohen/savona": "npm:0.1.1"
     "@companion-module/base": "npm:^2.0.4"
     "@companion-module/tools": "npm:^3.0.2"
     "@types/node": "npm:^22.20.0"
