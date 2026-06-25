@@ -1,6 +1,39 @@
 import { CompanionActionDefinitions, SomeCompanionActionInputField } from '@companion-module/base';
 import type { ModuleInstance } from '../main.js';
 import { DeepImmutable, ModuleAction } from './_types.js';
+import { pressAssignableButton } from './assignableButtons/press.js';
+import { setAutoUploadEnabled } from './autoUpload/setEnabled.js';
+import { setColorBarsEnabled } from './colorBars/setEnabled.js';
+import { setFocusVelocity } from './focus/setVelocity.js';
+import { stepFocusVelocity } from './focus/stepVelocity.js';
+import { setGammaValue } from './gamma/setValue.js';
+import { setGainMode } from './gain/setMode.js';
+import { setGainValue } from './gain/setValue.js';
+import { setIrisClosed } from './iris/setClosed.js';
+import { setIrisMode } from './iris/setMode.js';
+import { setIrisValue } from './iris/setValue.js';
+import { deleteProxyClip } from './media/deleteProxyClip.js';
+import { uploadClip } from './media/uploadClip.js';
+import { uploadLatestRecording } from './media/uploadLatestRecording.js';
+import { setNdMode } from './nd/setMode.js';
+import { setNdValue } from './nd/setValue.js';
+import { openRecorder } from './record/open.js';
+import { startRecording } from './record/start.js';
+import { stopRecording } from './record/stop.js';
+import { disableShutter } from './shutter/disable.js';
+import { setShutterMode } from './shutter/setMode.js';
+import { setShutterValue } from './shutter/setValue.js';
+import { abortUploadJobs } from './uploadJobs/abort.js';
+import { clearCompletedUploadJobs } from './uploadJobs/clearCompleted.js';
+import { deleteUploadJobs } from './uploadJobs/delete.js';
+import { restartUploadJobs } from './uploadJobs/restart.js';
+import { setDefaultUploadSetting } from './uploadSettings/setDefault.js';
+import { executeWhiteBalance } from './whiteBalance/execute.js';
+import { setWhiteBalanceMode } from './whiteBalance/setMode.js';
+import { setWhiteBalanceTrackingMode } from './whiteBalance/setTrackingMode.js';
+import { setWhiteBalanceValue } from './whiteBalance/setValue.js';
+import { setZoomVelocity } from './zoom/setVelocity.js';
+import { stepZoomVelocity } from './zoom/stepVelocity.js';
 
 export function createModuleAction<const Options extends DeepImmutable<SomeCompanionActionInputField[]>>(
 	action: Omit<ModuleAction<Options>, 'options'>,
@@ -10,7 +43,41 @@ export function createModuleAction<const Options extends DeepImmutable<SomeCompa
 }
 
 export function getActions(companionModule: ModuleInstance): CompanionActionDefinitions {
-	return convertActions(companionModule, {});
+	return convertActions(companionModule, {
+		abortUploadJobs,
+		clearCompletedUploadJobs,
+		deleteProxyClip,
+		deleteUploadJobs,
+		disableShutter,
+		executeWhiteBalance,
+		openRecorder,
+		pressAssignableButton,
+		restartUploadJobs,
+		setAutoUploadEnabled,
+		setColorBarsEnabled,
+		setDefaultUploadSetting,
+		setFocusVelocity,
+		setGammaValue,
+		setGainMode,
+		setGainValue,
+		setIrisClosed,
+		setIrisMode,
+		setIrisValue,
+		setNdMode,
+		setNdValue,
+		setShutterMode,
+		setShutterValue,
+		setWhiteBalanceMode,
+		setWhiteBalanceTrackingMode,
+		setWhiteBalanceValue,
+		setZoomVelocity,
+		startRecording,
+		stepFocusVelocity,
+		stepZoomVelocity,
+		stopRecording,
+		uploadClip,
+		uploadLatestRecording,
+	});
 }
 
 function convertActions(

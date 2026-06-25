@@ -104,6 +104,8 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 			return;
 		}
 
+		await this.fetchStartupData();
+
 		this.updateCompanionStuff();
 		return Promise.resolve();
 	}
@@ -142,6 +144,48 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 		this.setActionDefinitions(getActions(this));
 		this.setFeedbackDefinitions(getFeedbacks(this));
 		this.setVariableDefinitions(getVariableDefinitions(this));
+	}
+
+	private async fetchStartupData(): Promise<void> {
+		const client = this.client;
+		if (!client) return;
+
+		const startupFetches = [
+			{
+				name: 'upload settings for action choices',
+				fetch: async () => {
+					await client.uploadSettings.fetchValue();
+				},
+			},
+			{
+				name: 'shutter speed choices',
+				fetch: async () => {
+					await client.shutter.fetchShutterSpeedList();
+				},
+			},
+			{
+				name: 'assignable button choices',
+				fetch: async () => {
+					await client.assignableButtons.fetchCapabilities();
+				},
+			},
+		];
+
+		const results = await Promise.allSettled(
+			startupFetches.map(async (startupFetch) => {
+				try {
+					await startupFetch.fetch();
+				} catch (error) {
+					throw new Error(`Unable to fetch ${startupFetch.name}: ${error}`, { cause: error });
+				}
+			}),
+		);
+
+		for (const result of results) {
+			if (result.status === 'rejected') {
+				this.log('warn', `${result.reason}`);
+			}
+		}
 	}
 }
 

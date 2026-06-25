@@ -49,7 +49,7 @@ export function getConfigFields(): SomeCompanionConfigField[] {
 			width: 8,
 			default: true,
 			description:
-				'Feedback subscription is optional (retains your configuration), but necessary for ensuring accurate information from the device',
+				'Subscribes to camera notifications for live device updates used by feedbacks and variables. Actions do not require this, but leave it enabled if you want Companion state to track camera changes.',
 		},
 		{
 			type: 'checkbox',

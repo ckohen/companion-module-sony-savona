@@ -42,37 +42,37 @@ export interface ModuleAction<Options extends DeepImmutable<SomeCompanionActionI
 	/** The input fields for the action */
 	options: Options | ((companionModule: ModuleInstance) => Options);
 	/** Called to execute the action */
-	callback: (
+	callback(
 		companionModule: ModuleInstance,
 		action: TypeOptions<CompanionActionEvent, Options>,
 		context: CompanionActionContext,
-	) => Promise<void> | void;
+	): Promise<void> | void;
 	/**
 	 * Called to report the existence of an action
 	 * Useful to ensure necessary data is loaded
 	 */
-	subscribe?: (
+	subscribe?(
 		companionModule: ModuleInstance,
 		action: TypeOptions<CompanionActionInfo, Options>,
 		context: CompanionActionContext,
-	) => Promise<void> | void;
+	): Promise<void> | void;
 	/**
 	 * Called to report an action has been edited/removed
 	 * Useful to cleanup subscriptions setup in subscribe
 	 */
-	unsubscribe?: (
+	unsubscribe?(
 		companionModule: ModuleInstance,
 		action: TypeOptions<CompanionActionInfo, Options>,
 		context: CompanionActionContext,
-	) => Promise<void> | void;
+	): Promise<void> | void;
 	/**
 	 * The user requested to 'learn' the values for this action.
 	 */
-	learn?: (
+	learn?(
 		companionModule: ModuleInstance,
 		action: TypeOptions<CompanionActionEvent, Options>,
 		context: CompanionActionContext,
-	) =>
+	):
 		| Partial<TypeOptions<CompanionActionEvent, Options>['options']>
 		| undefined
 		| Promise<Partial<TypeOptions<CompanionActionEvent, Options>['options']> | undefined>;
