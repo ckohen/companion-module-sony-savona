@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 const generated = await generateEslintConfig({
 	enableTypescript: true,
-	ignores: ['.prettierrc.js'],
+	ignores: ['.prettierrc.js', 'build-config.cjs'],
 });
 
 export default tseslint.config(...generated, {
