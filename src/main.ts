@@ -6,19 +6,25 @@ import {
 	type CompanionOptionValues,
 	type CompanionVariableValues,
 	type InstanceTypes,
+	type JsonValue,
 	type SomeCompanionConfigField,
 } from '@companion-module/base';
 import { getConfigFields, ModuleSecrets, type ModuleConfig } from './config.js';
 import { UpgradeScripts } from './upgrades.js';
 import { getActions } from './actions/index.js';
 import { getFeedbacks } from './feedbacks/index.js';
+import { getPresets } from './presets/index.js';
 import { getVariableDefinitions } from './variables/index.js';
 import { SavonaClient, SavonaEvent } from '@ckohen/savona';
+import { CacheCoordinator } from './state/cacheCoordinator.js';
 
 export interface ModuleInstanceTypes extends InstanceTypes {
 	config: ModuleConfig;
 	secrets: ModuleSecrets;
-	actions: Record<string, CompanionActionSchema<CompanionOptionValues>>;
+	actions: Record<
+		string,
+		CompanionActionSchema<CompanionOptionValues, void> | CompanionActionSchema<CompanionOptionValues, JsonValue>
+	>;
 	feedbacks: Record<string, CompanionFeedbackSchema<CompanionOptionValues>>;
 	variables: CompanionVariableValues;
 }
@@ -27,6 +33,7 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 	public config: Required<ModuleConfig> | null = null; // Setup in init()
 	private authError: boolean = false;
 	public client: SavonaClient | null = null;
+	public readonly cacheCoordinator = new CacheCoordinator(this);
 	private retryTimeout: NodeJS.Timeout | null = null;
 
 	public constructor(internal: unknown) {
@@ -34,7 +41,7 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 	}
 
 	public async init(config: ModuleConfig, _isFirstInit: boolean, secrets: ModuleSecrets): Promise<void> {
-		this.updateCompanionStuff();
+		this.updateCompanionDefinitions();
 		this.updateStatus(InstanceStatus.Disconnected);
 
 		await this.configUpdated(config, secrets);
@@ -43,8 +50,10 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 	// When module gets deleted
 	public async destroy(): Promise<void> {
 		this.log('debug', 'destroy');
+		this.cacheCoordinator.unbind();
 		await this.client?.disconnect();
 		this.client = null;
+		this.cacheCoordinator.clearVariables();
 		if (this.retryTimeout) {
 			clearTimeout(this.retryTimeout);
 			this.retryTimeout = null;
@@ -57,12 +66,14 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 			clearTimeout(this.retryTimeout);
 			this.retryTimeout = null;
 		}
+		this.cacheCoordinator.unbind();
 		try {
 			await this.client?.disconnect();
 		} catch (error) {
 			this.log('error', `Error disconnecting discarded client: ${error}`);
 		}
 		this.client = null;
+		this.cacheCoordinator.clearVariables();
 
 		if (!config.host || !secrets.username || !secrets.password) {
 			this.log('error', 'Cannot instantiate without all config options');
@@ -77,6 +88,7 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 			secrets.password,
 			{ subscribeToNotifications: config.enableFeedbacks },
 		);
+		this.cacheCoordinator.bind(this.client);
 
 		this.client.on(SavonaEvent.Connect, () => {
 			this.updateStatus(InstanceStatus.Ok);
@@ -84,6 +96,7 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 
 		this.client.on(SavonaEvent.Disconnect, () => {
 			this.updateStatus(InstanceStatus.Disconnected);
+			this.cacheCoordinator.clearVariables();
 		});
 
 		this.client.on(SavonaEvent.Error, (error) => {
@@ -104,9 +117,9 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 			return;
 		}
 
-		await this.fetchStartupData();
+		await this.cacheCoordinator.refreshAll({ publish: false });
 
-		this.updateCompanionStuff();
+		this.cacheCoordinator.publishAll();
 		return Promise.resolve();
 	}
 
@@ -140,52 +153,11 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 		}
 	}
 
-	private updateCompanionStuff() {
+	public updateCompanionDefinitions(): void {
 		this.setActionDefinitions(getActions(this));
 		this.setFeedbackDefinitions(getFeedbacks(this));
+		this.setPresetDefinitions(...getPresets(this));
 		this.setVariableDefinitions(getVariableDefinitions(this));
-	}
-
-	private async fetchStartupData(): Promise<void> {
-		const client = this.client;
-		if (!client) return;
-
-		const startupFetches = [
-			{
-				name: 'upload settings for action choices',
-				fetch: async () => {
-					await client.uploadSettings.fetchValue();
-				},
-			},
-			{
-				name: 'shutter speed choices',
-				fetch: async () => {
-					await client.shutter.fetchShutterSpeedList();
-				},
-			},
-			{
-				name: 'assignable button choices',
-				fetch: async () => {
-					await client.assignableButtons.fetchCapabilities();
-				},
-			},
-		];
-
-		const results = await Promise.allSettled(
-			startupFetches.map(async (startupFetch) => {
-				try {
-					await startupFetch.fetch();
-				} catch (error) {
-					throw new Error(`Unable to fetch ${startupFetch.name}: ${error}`, { cause: error });
-				}
-			}),
-		);
-
-		for (const result of results) {
-			if (result.status === 'rejected') {
-				this.log('warn', `${result.reason}`);
-			}
-		}
 	}
 }
 

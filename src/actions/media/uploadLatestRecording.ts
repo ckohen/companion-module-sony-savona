@@ -6,7 +6,8 @@ import { createModuleAction } from '../index.js';
 import { getUploadSettingOptionData, parseUploadSettingId } from '../uploadSettings/_util.js';
 
 const autoDriveId = 'auto';
-const autoSearchDriveIds = ['media.1', 'media.2', 'media.3'] as const satisfies MediaDriveId[];
+type LatestRecordingDriveId = Exclude<MediaDriveId, 'media.3'>;
+const autoSearchDriveIds = ['media.1', 'media.2'] as const satisfies LatestRecordingDriveId[];
 const activeRecordingStatuses = new Set<RecordStatus>(['Recording', 'RecordingWithCall', 'RecPausing', 'Stopping']);
 
 function generateOptions(companionModule: ModuleInstance) {
@@ -19,10 +20,9 @@ function generateOptions(companionModule: ModuleInstance) {
 			label: 'Card',
 			default: autoDriveId,
 			choices: [
-				{ id: autoDriveId, label: 'Auto (Card A, Card B, Proxy)' },
+				{ id: autoDriveId, label: 'Auto (Card A, Card B)' },
 				{ id: 'media.1', label: 'Card A' },
 				{ id: 'media.2', label: 'Card B' },
-				{ id: 'media.3', label: 'Proxy Card' },
 				{ id: 'extdisc', label: 'External Disc' },
 			],
 		},
@@ -45,7 +45,7 @@ function generateOptions(companionModule: ModuleInstance) {
 export const uploadLatestRecording = createModuleAction<ReturnType<typeof generateOptions>>(
 	{
 		name: 'Upload Latest Recording',
-		description: 'Fetches the camera clip counter and uploads the previous completed clip from media.',
+		description: 'Fetches the camera clip counter and uploads the previous completed main clip from media.',
 		async callback(companionModule, action) {
 			await runSavonaAction(companionModule, 'uploading latest recording', async (client) => {
 				const [cameraClipName, clipInfo] = await Promise.all([
@@ -96,23 +96,22 @@ function previousClipNameFromNextName(clipName: string): string | undefined {
 	return `${prefix}${String(counter - 1).padStart(counterText.length, '0')}`;
 }
 
-function getSearchDriveIds(value: string | number | undefined): MediaDriveId[] {
+function getSearchDriveIds(value: string | number | undefined): LatestRecordingDriveId[] {
 	if (value === undefined || value === autoDriveId) return [...autoSearchDriveIds];
-	if (isMediaDriveId(value)) return [value];
+	if (isLatestRecordingDriveId(value)) return [value];
 	throw new Error('Card is required');
 }
 
-function isMediaDriveId(value: string | number): value is MediaDriveId {
-	return value === 'media.1' || value === 'media.2' || value === 'media.3' || value === 'extdisc';
+function isLatestRecordingDriveId(value: string | number): value is LatestRecordingDriveId {
+	return value === 'media.1' || value === 'media.2' || value === 'extdisc';
 }
 
-function formatDriveIds(driveIds: MediaDriveId[]): string {
+function formatDriveIds(driveIds: LatestRecordingDriveId[]): string {
 	return driveIds.map((driveId) => driveIdLabels[driveId]).join(', ');
 }
 
-const driveIdLabels: Record<MediaDriveId, string> = {
+const driveIdLabels: Record<LatestRecordingDriveId, string> = {
 	'media.1': 'Card A',
 	'media.2': 'Card B',
-	'media.3': 'Proxy Card',
 	extdisc: 'External Disc',
 };

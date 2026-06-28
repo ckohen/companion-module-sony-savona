@@ -1,6 +1,17 @@
-import { CompanionActionDefinitions, SomeCompanionActionInputField } from '@companion-module/base';
+import {
+	CompanionActionContext,
+	CompanionActionDefinition,
+	CompanionActionDefinitions,
+	CompanionActionEvent,
+	CompanionActionInfo,
+	CompanionActionLearnContext,
+	CompanionActionSchema,
+	CompanionOptionValues,
+	JsonValue,
+	SomeCompanionActionInputField,
+} from '@companion-module/base';
 import type { ModuleInstance } from '../main.js';
-import { DeepImmutable, ModuleAction } from './_types.js';
+import { AnyModuleAction, DeepImmutable, ModuleAction } from './_types.js';
 import { pressAssignableButton } from './assignableButtons/press.js';
 import { setAutoUploadEnabled } from './autoUpload/setEnabled.js';
 import { setColorBarsEnabled } from './colorBars/setEnabled.js';
@@ -35,14 +46,29 @@ import { setWhiteBalanceValue } from './whiteBalance/setValue.js';
 import { setZoomVelocity } from './zoom/setVelocity.js';
 import { stepZoomVelocity } from './zoom/stepVelocity.js';
 
+export function createModuleAction<
+	const Options extends DeepImmutable<SomeCompanionActionInputField[]>,
+	const Result extends JsonValue,
+>(
+	action: Omit<ModuleAction<Options, Result>, 'options'> & { hasResult: true },
+	options: Options | ((companionModule: ModuleInstance) => Options),
+): ModuleAction<Options, Result>;
+export function createModuleAction<const Options extends DeepImmutable<SomeCompanionActionInputField[]>>(
+	action: Omit<ModuleAction<Options, void>, 'options'>,
+	options: Options | ((companionModule: ModuleInstance) => Options),
+): ModuleAction<Options, void>;
 export function createModuleAction<const Options extends DeepImmutable<SomeCompanionActionInputField[]>>(
 	action: Omit<ModuleAction<Options>, 'options'>,
 	options: Options | ((companionModule: ModuleInstance) => Options),
-): ModuleAction<Options> {
-	return { options, ...action };
+): AnyModuleAction<Options> {
+	return { options, ...action } as AnyModuleAction<Options>;
 }
 
-export function getActions(companionModule: ModuleInstance): CompanionActionDefinitions {
+type ModuleActionSchema =
+	CompanionActionSchema<CompanionOptionValues, void> | CompanionActionSchema<CompanionOptionValues, JsonValue>;
+type ModuleActionSchemas = Record<string, ModuleActionSchema>;
+
+export function getActions(companionModule: ModuleInstance): CompanionActionDefinitions<ModuleActionSchemas> {
 	return convertActions(companionModule, {
 		abortUploadJobs,
 		clearCompletedUploadJobs,
@@ -82,40 +108,63 @@ export function getActions(companionModule: ModuleInstance): CompanionActionDefi
 
 function convertActions(
 	companionModule: ModuleInstance,
-	actions: Record<string, ModuleAction<DeepImmutable<SomeCompanionActionInputField[]>>>,
+	actions: Record<string, AnyModuleAction<DeepImmutable<SomeCompanionActionInputField[]>>>,
 ) {
-	const companionActions: CompanionActionDefinitions = {};
+	const companionActions: CompanionActionDefinitions<ModuleActionSchemas> = {};
 	for (const [action, actionDef] of Object.entries(actions)) {
-		companionActions[action] = {
+		const options = (
+			typeof actionDef.options === 'function' ? actionDef.options(companionModule) : actionDef.options
+		) as SomeCompanionActionInputField[];
+		const learn = actionDef.learn;
+		const subscribe = actionDef.subscribe;
+		const unsubscribe = actionDef.unsubscribe;
+		const common = {
 			name: actionDef.name,
-			options: (typeof actionDef.options === 'function'
-				? actionDef.options(companionModule)
-				: actionDef.options) as SomeCompanionActionInputField[],
-			description: actionDef.description,
-			callback: async (event, context) =>
-				actionDef.callback(companionModule, event as Parameters<typeof actionDef.callback>[1], context),
-			learn: actionDef.learn
-				? async (event, context) =>
-						actionDef.learn!(companionModule, event as Parameters<NonNullable<typeof actionDef.learn>>[1], context)
-				: undefined,
-			learnTimeout: actionDef.learnTimeout,
-			subscribe: actionDef.subscribe
-				? async (event, context) =>
-						actionDef.subscribe!(
-							companionModule,
-							event as Parameters<NonNullable<typeof actionDef.subscribe>>[1],
-							context,
-						)
-				: undefined,
-			unsubscribe: actionDef.unsubscribe
-				? async (event, context) =>
-						actionDef.unsubscribe!(
-							companionModule,
-							event as Parameters<NonNullable<typeof actionDef.unsubscribe>>[1],
-							context,
-						)
-				: undefined,
+			options,
+			...(actionDef.sortName !== undefined ? { sortName: actionDef.sortName } : {}),
+			...(actionDef.description !== undefined ? { description: actionDef.description } : {}),
+			...(learn !== undefined
+				? {
+						learn: async (event: CompanionActionEvent<CompanionOptionValues>, context: CompanionActionLearnContext) =>
+							learn(companionModule, event as Parameters<typeof learn>[1], context),
+					}
+				: {}),
+			...(actionDef.learnTimeout !== undefined ? { learnTimeout: actionDef.learnTimeout } : {}),
+			...(subscribe !== undefined
+				? {
+						optionsToMonitorForSubscribe: actionDef.optionsToMonitorForSubscribe,
+						...(actionDef.skipUnsubscribeOnOptionsChange !== undefined
+							? { skipUnsubscribeOnOptionsChange: actionDef.skipUnsubscribeOnOptionsChange }
+							: {}),
+						subscribe: async (event: CompanionActionInfo<CompanionOptionValues>, context: CompanionActionContext) =>
+							subscribe(companionModule, event as Parameters<typeof subscribe>[1], context),
+						...(unsubscribe !== undefined
+							? {
+									unsubscribe: async (
+										event: CompanionActionInfo<CompanionOptionValues>,
+										context: CompanionActionContext,
+									) => unsubscribe(companionModule, event as Parameters<typeof unsubscribe>[1], context),
+								}
+							: {}),
+					}
+				: {}),
 		};
+
+		if (actionDef.hasResult === true) {
+			companionActions[action] = {
+				...common,
+				hasResult: true,
+				callback: async (event, context) =>
+					actionDef.callback(companionModule, event as Parameters<typeof actionDef.callback>[1], context),
+			} as CompanionActionDefinition<CompanionActionSchema<CompanionOptionValues, JsonValue>>;
+		} else {
+			companionActions[action] = {
+				...common,
+				callback: async (event, context) => {
+					await actionDef.callback(companionModule, event as Parameters<typeof actionDef.callback>[1], context);
+				},
+			} as CompanionActionDefinition<CompanionActionSchema<CompanionOptionValues, void>>;
+		}
 	}
 	return companionActions;
 }

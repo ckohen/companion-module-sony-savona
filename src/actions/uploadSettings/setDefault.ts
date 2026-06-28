@@ -24,6 +24,7 @@ export const setDefaultUploadSetting = createModuleAction<ReturnType<typeof gene
 		async callback(companionModule, action) {
 			await runSavonaAction(companionModule, 'setting default upload setting', async (client) => {
 				await client.uploadSettings.setDefault(parseUploadSettingId(action.options.uploadSettingId));
+				await companionModule.cacheCoordinator.refresh(['uploadSettings']);
 			});
 		},
 	},

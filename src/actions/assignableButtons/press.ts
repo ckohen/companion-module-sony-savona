@@ -25,6 +25,7 @@ function generateOptions(companionModule: ModuleInstance) {
 			default: currentAssignmentId,
 			choices: assignmentChoices,
 			allowCustom: true,
+			disableAutoExpression: true,
 			minChoicesForSearch: 8,
 		},
 		{
@@ -102,7 +103,7 @@ function getButtonChoices(companionModule: ModuleInstance): DropdownChoice<numbe
 	const buttonIds = Array.from(companionModule.client?.assignableButtons.buttons.keys() ?? []).sort(
 		(buttonA, buttonB) => buttonA - buttonB,
 	);
-	const ids = buttonIds.length ? buttonIds : [1, 2, 3, 4, 5, 6, 7, 8];
+	const ids = buttonIds.length ? buttonIds : [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 	return ids.map((id) => ({ id, label: `Assignable ${id}` }));
 }
