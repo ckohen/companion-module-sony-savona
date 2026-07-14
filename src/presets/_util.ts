@@ -11,12 +11,12 @@ export const presetColors = {
 	amber: combineRgb(210, 145, 0),
 } as const;
 
-export function baseStyle(text: string, bgcolor: number): CompanionButtonStyleProps {
+export function baseStyle(text: string): CompanionButtonStyleProps {
 	return {
 		text,
-		size: '18',
+		size: 'auto',
 		color: presetColors.white,
-		bgcolor,
+		bgcolor: presetColors.dark,
 	};
 }
 

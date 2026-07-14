@@ -17,7 +17,7 @@ export function getUploadPresetDefinitions(uploadSettingId: number): CompanionPr
 			name: 'Upload Latest Recording',
 			type: 'simple',
 			keywords: ['latest'],
-			style: baseStyle('UPLOAD\nLATEST', presetColors.blue),
+			style: baseStyle('UPLOAD\nLATEST'),
 			feedbacks: [
 				{
 					feedbackId: 'uploadJobState',
@@ -35,7 +35,7 @@ export function getUploadPresetDefinitions(uploadSettingId: number): CompanionPr
 		auto_upload_on: {
 			name: 'Enable Auto Upload',
 			type: 'simple',
-			style: baseStyle('AUTO\nUPLOAD\nON', presetColors.blue),
+			style: baseStyle('AUTO\nUPLOAD\nON'),
 			feedbacks: [
 				{
 					feedbackId: 'autoUploadEnabled',
@@ -53,7 +53,7 @@ export function getUploadPresetDefinitions(uploadSettingId: number): CompanionPr
 		auto_upload_off: {
 			name: 'Disable Auto Upload',
 			type: 'simple',
-			style: baseStyle('AUTO\nUPLOAD\nOFF', presetColors.dark),
+			style: baseStyle('AUTO\nUPLOAD\nOFF'),
 			feedbacks: [
 				{
 					feedbackId: 'autoUploadEnabled',
@@ -72,7 +72,7 @@ export function getUploadPresetDefinitions(uploadSettingId: number): CompanionPr
 		abort_uploads: {
 			name: 'Abort Uploads',
 			type: 'simple',
-			style: baseStyle('ABORT\nUPLOADS', presetColors.dark),
+			style: baseStyle('ABORT\nUPLOADS'),
 			feedbacks: [
 				{
 					feedbackId: 'uploadJobState',
@@ -90,7 +90,7 @@ export function getUploadPresetDefinitions(uploadSettingId: number): CompanionPr
 		restart_failed_uploads: {
 			name: 'Restart Failed Uploads',
 			type: 'simple',
-			style: baseStyle('RESTART\nFAILED', presetColors.dark),
+			style: baseStyle('RESTART\nFAILED'),
 			feedbacks: [
 				{
 					feedbackId: 'uploadJobState',
@@ -108,7 +108,7 @@ export function getUploadPresetDefinitions(uploadSettingId: number): CompanionPr
 		clear_completed_uploads: {
 			name: 'Clear Completed Uploads',
 			type: 'simple',
-			style: baseStyle('CLEAR\nCOMPLETE', presetColors.dark),
+			style: baseStyle('CLEAR\nCOMPLETE'),
 			feedbacks: [
 				{
 					feedbackId: 'uploadJobState',

@@ -27,16 +27,29 @@ export class CacheCoordinator {
 		this.unbind();
 		this.client = client;
 
+		const valueFacets = new Map<string, CacheFacet[]>();
+		const statusFacets = new Map<string, CacheFacet[]>();
+		const processFacets = new Map<string, CacheFacet[]>();
 		for (const facet of this.includedFacets()) {
 			for (const property of facet.notifications?.value ?? []) {
-				this.listen(client.notifications.propertyValueChanged, property, facet);
+				addFacet(valueFacets, property, facet);
 			}
 			for (const property of facet.notifications?.status ?? []) {
-				this.listen(client.notifications.propertyStatusChanged, property, facet);
+				addFacet(statusFacets, property, facet);
 			}
 			for (const property of facet.notifications?.process ?? []) {
-				this.listen(client.notifications.process, property, facet);
+				addFacet(processFacets, property, facet);
 			}
+		}
+
+		for (const [property, facets] of valueFacets) {
+			this.listen(client.notifications.propertyValueChanged, property, facets);
+		}
+		for (const [property, facets] of statusFacets) {
+			this.listen(client.notifications.propertyStatusChanged, property, facets);
+		}
+		for (const [property, facets] of processFacets) {
+			this.listen(client.notifications.process, property, facets);
 		}
 	}
 
@@ -102,9 +115,14 @@ export class CacheCoordinator {
 	private listen(
 		emitter: SavonaClient['notifications']['propertyValueChanged'],
 		property: string,
-		facet: CacheFacet,
+		facets: readonly CacheFacet[],
 	): void {
-		const listener = (): void => this.queue([facet.id], facet.throttleMs ?? defaultFlushDelayMs);
+		const delayMs = Math.min(...facets.map((facet) => facet.throttleMs ?? defaultFlushDelayMs));
+		const listener = (): void =>
+			this.queue(
+				facets.map((facet) => facet.id),
+				delayMs,
+			);
 		emitter.on(property, listener);
 		this.disposeListeners.push(() => emitter.removeListener(property, listener));
 	}
@@ -150,6 +168,15 @@ export class CacheCoordinator {
 
 	private checkStateFeedbacks(): void {
 		this.companionModule.checkFeedbacks(...stateFeedbackIds);
+	}
+}
+
+function addFacet(facetsByProperty: Map<string, CacheFacet[]>, property: string, facet: CacheFacet): void {
+	const facets = facetsByProperty.get(property);
+	if (facets) {
+		facets.push(facet);
+	} else {
+		facetsByProperty.set(property, [facet]);
 	}
 }
 

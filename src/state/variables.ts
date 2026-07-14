@@ -51,14 +51,14 @@ const mediaCardVariables = [
 		getValue: (client) => card(client).type,
 	},
 	{
-		id: `media_card_${id}_recording`,
-		name: `Media Card ${label} Recording`,
+		id: `media_card_${id}_record_target`,
+		name: `Media Card ${label} Record Target`,
 		facetId: 'mediaCards',
 		getValue: (client) => card(client).isRecording,
 	},
 	{
-		id: `media_card_${id}_playing`,
-		name: `Media Card ${label} Playing`,
+		id: `media_card_${id}_playback_target`,
+		name: `Media Card ${label} Playback Target`,
 		facetId: 'mediaCards',
 		getValue: (client) => card(client).isPlaying,
 	},
@@ -76,17 +76,47 @@ const mediaCardVariables = [
 	},
 	{
 		id: `media_card_${id}_available_time`,
-		name: `Media Card ${label} Available Time`,
+		name: `Media Card ${label} Available Time (Raw)`,
 		facetId: 'mediaCards',
 		getValue: (client) => card(client).availableTime,
 	},
 	{
 		id: `media_card_${id}_available_size`,
-		name: `Media Card ${label} Available Size`,
+		name: `Media Card ${label} Available Size (Bytes)`,
 		facetId: 'mediaCards',
 		getValue: (client) => card(client).availableSize,
 	},
+	{
+		id: `media_card_${id}_available_size_mb`,
+		name: `Media Card ${label} Available Size (MB)`,
+		facetId: 'mediaCards',
+		getValue: (client) => scaleBytes(card(client).availableSize, 1_000_000),
+	},
+	{
+		id: `media_card_${id}_available_size_gb`,
+		name: `Media Card ${label} Available Size (GB)`,
+		facetId: 'mediaCards',
+		getValue: (client) => scaleBytes(card(client).availableSize, 1_000_000_000),
+	},
+	{
+		id: `media_card_${id}_available_size_display`,
+		name: `Media Card ${label} Available Size (Formatted)`,
+		facetId: 'mediaCards',
+		getValue: (client) => formatBytes(card(client).availableSize),
+	},
 ]);
+
+function scaleBytes(bytes: number | null, divisor: number): number | undefined {
+	return bytes === null ? undefined : Math.round((bytes / divisor) * 100) / 100;
+}
+
+function formatBytes(bytes: number | null): string | undefined {
+	if (bytes === null) return undefined;
+	if (bytes >= 1_000_000_000) return `${scaleBytes(bytes, 1_000_000_000)} GB`;
+	if (bytes >= 1_000_000) return `${scaleBytes(bytes, 1_000_000)} MB`;
+	if (bytes >= 1_000) return `${scaleBytes(bytes, 1_000)} kB`;
+	return `${bytes} bytes`;
+}
 
 export const variableDescriptors: readonly VariableDescriptor[] = [
 	...assignableButtonVariables,

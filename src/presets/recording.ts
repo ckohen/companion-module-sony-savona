@@ -13,7 +13,7 @@ export function getRecordingPresetDefinitions(
 		record_start: {
 			name: 'Start Recording',
 			type: 'simple',
-			style: baseStyle('REC\nSTART', presetColors.red),
+			style: baseStyle('REC\nSTART'),
 			feedbacks: [recordingFeedback()],
 			steps: [
 				{
@@ -25,7 +25,7 @@ export function getRecordingPresetDefinitions(
 		record_stop: {
 			name: 'Stop Recording',
 			type: 'simple',
-			style: baseStyle('REC\nSTOP', presetColors.dark),
+			style: baseStyle('REC\nSTOP'),
 			feedbacks: [recordingFeedback()],
 			steps: [
 				{
@@ -38,7 +38,7 @@ export function getRecordingPresetDefinitions(
 			name: 'Stop Recording and Upload Latest',
 			type: 'simple',
 			keywords: ['latest', 'finalize', 'upload'],
-			style: baseStyle('STOP\nUPLOAD\nLAST', presetColors.dark),
+			style: baseStyle('STOP\nUPLOAD\nLAST'),
 			feedbacks: [
 				recordingFeedback(),
 				{

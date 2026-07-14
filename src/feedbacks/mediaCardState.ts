@@ -27,8 +27,8 @@ function generateOptions() {
 			choices: [
 				{ id: 'mounted', label: 'Mounted' },
 				{ id: 'notMounted', label: 'Not Mounted' },
-				{ id: 'recording', label: 'Recording' },
-				{ id: 'playing', label: 'Playing' },
+				{ id: 'recordTarget', label: 'Record Target' },
+				{ id: 'playbackTarget', label: 'Playback Target' },
 				{ id: 'writeProtected', label: 'Write Protected' },
 				{ id: 'fileError', label: 'File Error' },
 				{ id: 'lowTime', label: 'Low Available Time' },
@@ -84,9 +84,9 @@ function matchesCardState(card: MediaCard, state: string | undefined, availableT
 	switch (state) {
 		case 'notMounted':
 			return card.status !== 'Mounted';
-		case 'recording':
+		case 'recordTarget':
 			return card.isRecording;
-		case 'playing':
+		case 'playbackTarget':
 			return card.isPlaying;
 		case 'writeProtected':
 			return card.writeProtected;
