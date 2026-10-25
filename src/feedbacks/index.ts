@@ -8,6 +8,7 @@ import {
 	CompanionFeedbackLearnContext,
 	CompanionFeedbackValueEvent,
 	CompanionOptionValues,
+	JsonValue,
 	SomeCompanionFeedbackInputField,
 } from '@companion-module/base';
 import type { ModuleInstance } from '../main.js';
@@ -24,21 +25,24 @@ import { uploadJobState } from './uploadJobState.js';
 export function createModuleBooleanFeedback<const Options extends DeepImmutable<SomeCompanionFeedbackInputField[]>>(
 	feedback: Omit<ModuleBooleanFeedback<Options>, 'options' | 'type'>,
 	options: Options | ((companionModule: ModuleInstance) => Options),
-): ModuleFeedback<Options> {
+): ModuleBooleanFeedback<Options> {
 	return { options, ...feedback, type: 'boolean' };
 }
 
-export function createModuleValueFeedback<const Options extends DeepImmutable<SomeCompanionFeedbackInputField[]>>(
-	feedback: Omit<ModuleValueFeedback<Options>, 'options' | 'type'>,
+export function createModuleValueFeedback<
+	const Options extends DeepImmutable<SomeCompanionFeedbackInputField[]>,
+	const Result extends JsonValue = JsonValue,
+>(
+	feedback: Omit<ModuleValueFeedback<Options, Result>, 'options' | 'type'>,
 	options: Options | ((companionModule: ModuleInstance) => Options),
-): ModuleFeedback<Options> {
+): ModuleValueFeedback<Options, Result> {
 	return { options, ...feedback, type: 'value' };
 }
 
 export function createModuleAdvancedFeedback<const Options extends DeepImmutable<SomeCompanionFeedbackInputField[]>>(
 	feedback: Omit<ModuleAdvancedFeedback<Options>, 'options' | 'type'>,
 	options: Options | ((companionModule: ModuleInstance) => Options),
-): ModuleFeedback<Options> {
+): ModuleAdvancedFeedback<Options> {
 	return { options, ...feedback, type: 'advanced' };
 }
 

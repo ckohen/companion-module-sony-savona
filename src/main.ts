@@ -25,7 +25,7 @@ export interface ModuleInstanceTypes extends InstanceTypes {
 		string,
 		CompanionActionSchema<CompanionOptionValues, void> | CompanionActionSchema<CompanionOptionValues, JsonValue>
 	>;
-	feedbacks: Record<string, CompanionFeedbackSchema<CompanionOptionValues>>;
+	feedbacks: Record<string, CompanionFeedbackSchema<CompanionOptionValues, JsonValue>>;
 	variables: CompanionVariableValues;
 }
 

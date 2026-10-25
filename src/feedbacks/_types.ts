@@ -117,6 +117,7 @@ export interface ModuleBooleanFeedback<
  */
 export interface ModuleValueFeedback<
 	Options extends DeepImmutable<SomeCompanionFeedbackInputField[]>,
+	Result extends JsonValue = JsonValue,
 > extends ModuleFeedbackBase<Options> {
 	/** The type of the feedback */
 	type: 'value';
@@ -126,7 +127,7 @@ export interface ModuleValueFeedback<
 		companionModule: ModuleInstance,
 		feedback: ModuleFeedbackValueEvent<Options>,
 		context: CompanionFeedbackCallbackContext,
-	) => JsonValue | Promise<JsonValue>;
+	) => Result | Promise<Result>;
 }
 
 /**
@@ -150,5 +151,7 @@ export interface ModuleAdvancedFeedback<
 	) => CompanionAdvancedFeedbackResult | Promise<CompanionAdvancedFeedbackResult>;
 }
 
-export type ModuleFeedback<Options extends DeepImmutable<SomeCompanionFeedbackInputField[]>> =
-	ModuleBooleanFeedback<Options> | ModuleValueFeedback<Options> | ModuleAdvancedFeedback<Options>;
+export type ModuleFeedback<
+	Options extends DeepImmutable<SomeCompanionFeedbackInputField[]>,
+	Result extends JsonValue = JsonValue,
+> = ModuleBooleanFeedback<Options> | ModuleValueFeedback<Options, Result> | ModuleAdvancedFeedback<Options>;

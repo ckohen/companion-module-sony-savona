@@ -4,6 +4,7 @@ import {
 	CompanionActionEvent,
 	CompanionActionInfo,
 	CompanionActionLearnContext,
+	CompanionColorValue,
 	JsonValue,
 	SomeCompanionActionInputField,
 	StringKeys,
@@ -22,7 +23,7 @@ export type DeepImmutable<T> =
 export interface OptionTypeToTypescriptType {
 	'bonjour-device': string;
 	checkbox: boolean;
-	colorpicker: string | number;
+	colorpicker: CompanionColorValue;
 	'custom-variable': string;
 	dropdown: string | number;
 	multidropdown: (string | number)[];

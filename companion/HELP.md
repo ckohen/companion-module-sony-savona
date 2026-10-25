@@ -1,5 +1,7 @@
 ## Sony Savona
 
+Requires Companion 5.1 or newer.
+
 Control Sony cameras that expose Sony's network remote-control API.
 
 This module is expected to work with cameras that use the same remote API as

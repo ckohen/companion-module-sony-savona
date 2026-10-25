@@ -29,9 +29,10 @@ yarn package
 - `yarn test` builds the module and runs regression tests with Node's test runner.
 - `yarn package` builds a Companion package archive.
 
-The module manifest targets Companion's `node26` runtime. The local development
-toolchain is managed by Yarn and the Companion module tools declared in
-[package.json](./package.json).
+The module requires Companion 5.1 or newer and targets its `node26` runtime.
+Development supports Node 22.22.1+ in the 22.x line, or Node 26.5+. CI checks both
+release lines. The local toolchain is managed by Yarn and the Companion module
+tools declared in [package.json](./package.json).
 
 ## Structure
 
@@ -53,6 +54,10 @@ refresh, and should be used for camera actions. The coordinator listens for
 still be awaited before publishing. It tracks which structures have initialized,
 but all camera values remain in the Savona client.
 
-The action and feedback helper types are intentionally a little richer than this module currently needs. They wrap Companion API 2.1 features such as typed action results, subscribe hooks, value feedbacks, advanced feedback `affectedProperties`, and callback abort signals so new actions and feedbacks remain easy to write.
+The action and feedback helper types are intentionally a little richer than this
+module currently needs. They support Companion API 2.2, including typed action and
+value-feedback results, subscribe hooks, advanced feedback `affectedProperties`,
+CSS colours, and callback abort signals. New actions and feedbacks remain easy to
+write. Compile-time regression checks run as part of `yarn test`.
 
 [build-config.cjs](./build-config.cjs) keeps `digest-fetch` external during packaging. This avoids adding `node-fetch` only to satisfy an optional fallback path in a transitive dependency; Companion's supported Node runtimes provide global `fetch`.

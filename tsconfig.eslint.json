@@ -13,6 +13,7 @@
 		"bin",
 		"scripts",
 		"test/**/*.mjs",
+		"test/**/*.types.ts",
 		"__tests__",
 		"__mocks__"
 	],
