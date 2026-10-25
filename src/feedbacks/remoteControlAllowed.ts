@@ -29,7 +29,7 @@ export const remoteControlAllowed = createModuleBooleanFeedback<ReturnType<typeo
 			color: combineRgb(255, 255, 255),
 		},
 		callback(companionModule, feedback) {
-			const client = getConnectedClient(companionModule);
+			const client = getConnectedClient(companionModule, 'globalStatus');
 			if (!client) return false;
 
 			switch (feedback.options.permission) {

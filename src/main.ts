@@ -31,10 +31,15 @@ export interface ModuleInstanceTypes extends InstanceTypes {
 
 export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 	public config: Required<ModuleConfig> | null = null; // Setup in init()
-	private authError: boolean = false;
 	public client: SavonaClient | null = null;
+	public isReady = false;
 	public readonly cacheCoordinator = new CacheCoordinator(this);
 	private retryTimeout: NodeJS.Timeout | null = null;
+	private disposeClientListeners: (() => void) | null = null;
+	private initialization: Promise<void> | null = null;
+	private configurationGeneration = 0;
+	private connectionGeneration = 0;
+	private destroyed = false;
 
 	public constructor(internal: unknown) {
 		super(internal);
@@ -47,80 +52,94 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 		await this.configUpdated(config, secrets);
 	}
 
-	// When module gets deleted
 	public async destroy(): Promise<void> {
 		this.log('debug', 'destroy');
-		this.cacheCoordinator.unbind();
-		await this.client?.disconnect();
-		this.client = null;
-		this.cacheCoordinator.clearVariables();
-		if (this.retryTimeout) {
-			clearTimeout(this.retryTimeout);
-			this.retryTimeout = null;
-		}
-		return Promise.resolve();
+		this.destroyed = true;
+		this.configurationGeneration++;
+		this.clearRetry();
+		await this.discardClient();
 	}
 
 	public async configUpdated(config: ModuleConfig, secrets: ModuleSecrets): Promise<void> {
-		if (this.retryTimeout) {
-			clearTimeout(this.retryTimeout);
-			this.retryTimeout = null;
-		}
-		this.cacheCoordinator.unbind();
-		try {
-			await this.client?.disconnect();
-		} catch (error) {
-			this.log('error', `Error disconnecting discarded client: ${error}`);
-		}
-		this.client = null;
-		this.cacheCoordinator.clearVariables();
+		if (this.destroyed) return;
+		const generation = ++this.configurationGeneration;
+		this.clearRetry();
+		await this.discardClient();
+		if (this.destroyed || this.configurationGeneration !== generation) return;
+
+		this.config = config;
+		this.updateCompanionDefinitions();
 
 		if (!config.host || !secrets.username || !secrets.password) {
 			this.log('error', 'Cannot instantiate without all config options');
 			this.updateStatus(InstanceStatus.BadConfig);
-			return Promise.resolve();
+			return;
 		}
 
-		this.config = config;
-		this.client = new SavonaClient(
+		const client = new SavonaClient(
 			`${config.host}${config.port ? `:${config.port}` : ''}`,
 			secrets.username,
 			secrets.password,
 			{ subscribeToNotifications: config.enableFeedbacks },
 		);
-		this.cacheCoordinator.bind(this.client);
+		this.client = client;
+		this.cacheCoordinator.bind(client);
 
-		this.client.on(SavonaEvent.Connect, () => {
-			this.updateStatus(InstanceStatus.Ok);
-		});
+		const onConnect = (): void => {
+			if (this.client !== client) return;
+			this.initialization = this.initializeClient(client);
+		};
 
-		this.client.on(SavonaEvent.Disconnect, () => {
+		const onDisconnect = (): void => {
+			if (this.client !== client) return;
+			this.connectionGeneration++;
+			this.initialization = null;
+			this.isReady = false;
 			this.updateStatus(InstanceStatus.Disconnected);
 			this.cacheCoordinator.clearVariables();
-		});
+		};
 
-		this.client.on(SavonaEvent.Error, (error) => {
-			this.log('error', `Savona Client Error: ${error}`);
-		});
+		const onError = (error: string): void => {
+			if (this.client === client) this.log('error', `Savona Client Error: ${error}`);
+		};
+		const onDebug = (message: string): void => {
+			if (this.client === client) this.log('debug', `Savona Client Debug: ${message}`);
+		};
 
-		this.client.on(SavonaEvent.Debug, (message) => {
-			this.log('debug', `Savona Client Debug: ${message}`);
-		});
+		client.on(SavonaEvent.Connect, onConnect);
+		client.on(SavonaEvent.Disconnect, onDisconnect);
+		client.on(SavonaEvent.Error, onError);
+		client.on(SavonaEvent.Debug, onDebug);
+		this.disposeClientListeners = () => {
+			client.off(SavonaEvent.Connect, onConnect);
+			client.off(SavonaEvent.Disconnect, onDisconnect);
+			client.off(SavonaEvent.Error, onError);
+			client.off(SavonaEvent.Debug, onDebug);
+		};
 
+		this.updateStatus(InstanceStatus.Connecting);
 		try {
-			await this.login();
+			await client.connect();
 		} catch (error) {
+			if (this.client !== client || this.configurationGeneration !== generation) return;
 			this.log('error', `Error Logging in during init: ${error}`);
-			if (!this.authError) {
-				this.retryTimeout = setTimeout(() => void this.configUpdated(config, secrets), 10_000);
+			if (isAuthenticationError(error)) {
+				this.updateStatus(InstanceStatus.AuthenticationFailure, 'Check camera username and password');
+			} else {
+				this.updateStatus(InstanceStatus.ConnectionFailure, formatError(error));
+				this.retryTimeout = setTimeout(() => {
+					this.retryTimeout = null;
+					if (this.destroyed || this.client !== client || this.configurationGeneration !== generation) return;
+					void this.configUpdated(config, secrets).catch((retryError: unknown) => {
+						this.log('error', `Error retrying connection: ${formatError(retryError)}`);
+					});
+				}, 10_000);
+				this.retryTimeout.unref();
 			}
 			return;
 		}
 
-		await this.cacheCoordinator.refreshAll({ publish: false });
-
-		this.cacheCoordinator.publishAll();
-		return Promise.resolve();
+		if (this.client === client) await this.initialization;
 	}
 
 	// Return config fields for web config
@@ -128,28 +147,49 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 		return getConfigFields();
 	}
 
-	private async login() {
-		const config = this.config;
+	public get readyClient(): SavonaClient | null {
+		return this.isReady && String(this.client?.state) === 'connected' ? this.client : null;
+	}
 
-		if (!config || !this.client) {
-			this.log('warn', 'Attempted to login before configured');
-			throw new Error('Not ready');
-		}
-
-		this.updateStatus(InstanceStatus.Connecting);
-
+	private async initializeClient(client: SavonaClient): Promise<void> {
+		const generation = ++this.connectionGeneration;
+		this.isReady = false;
+		this.cacheCoordinator.clearVariables();
+		this.updateStatus(InstanceStatus.Connecting, 'Fetching camera state');
 		try {
-			this.authError = false;
-			await this.client.connect();
+			await this.cacheCoordinator.refreshAll({ publish: false });
+			if (this.client !== client || this.connectionGeneration !== generation || String(client.state) !== 'connected')
+				return;
+			this.isReady = true;
+			this.cacheCoordinator.publishAll();
 			this.updateStatus(InstanceStatus.Ok);
 		} catch (error) {
-			if (error instanceof Error && error.message.includes('401')) {
-				this.updateStatus(InstanceStatus.AuthenticationFailure);
-				this.authError = true;
-				throw new Error('Login Failed, check username and password', { cause: error });
-			}
-			this.updateStatus(InstanceStatus.ConnectionFailure, error instanceof Error ? error.message : 'Unknown error');
-			throw new Error(`Login Failed, ${error}`, { cause: error });
+			if (this.client !== client || this.connectionGeneration !== generation) return;
+			this.isReady = false;
+			this.log('error', `Error initializing camera state: ${formatError(error)}`);
+			this.updateStatus(InstanceStatus.ConnectionFailure, formatError(error));
+		}
+	}
+
+	private clearRetry(): void {
+		if (this.retryTimeout) clearTimeout(this.retryTimeout);
+		this.retryTimeout = null;
+	}
+
+	private async discardClient(): Promise<void> {
+		this.isReady = false;
+		this.connectionGeneration++;
+		this.initialization = null;
+		const client = this.client;
+		this.client = null;
+		this.disposeClientListeners?.();
+		this.disposeClientListeners = null;
+		this.cacheCoordinator.unbind();
+		this.cacheCoordinator.clearVariables();
+		try {
+			await client?.disconnect();
+		} catch (error) {
+			this.log('error', `Error disconnecting discarded client: ${formatError(error)}`);
 		}
 	}
 
@@ -159,6 +199,16 @@ export class ModuleInstance extends InstanceBase<ModuleInstanceTypes> {
 		this.setPresetDefinitions(...getPresets(this));
 		this.setVariableDefinitions(getVariableDefinitions(this));
 	}
+}
+
+function isAuthenticationError(error: unknown): boolean {
+	if (!(error instanceof Error)) return false;
+	if (error.message.includes('401')) return true;
+	return 'data' in error && Array.isArray(error.data) && [403, 5001].includes(error.data[0]);
+}
+
+function formatError(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 export { UpgradeScripts };

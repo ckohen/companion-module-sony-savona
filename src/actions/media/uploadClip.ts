@@ -53,6 +53,9 @@ export const uploadClip = createModuleAction<ReturnType<typeof generateOptions>>
 				if (!clipName) throw new Error('Clip name is required');
 
 				const clips = await client.mediaCards.fetchClips(action.options.driveId as MediaDriveId);
+				if (companionModule.cacheCoordinator.isInitialized('mediaCards')) {
+					companionModule.cacheCoordinator.markUpdated(client, 'mediaCards');
+				}
 				const clip = clips.find((entry) => entry.name === clipName);
 				if (!clip) throw new Error(`Clip not found: ${clipName}`);
 

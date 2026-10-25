@@ -58,10 +58,11 @@ the Companion log for the camera response or module error.
 The camera appears to support automatic upload for proxy recording, but not main
 recording.
 
-`Upload Latest Recording` uploads the latest completed main recording. The camera
-reports the next clip name, or possibly the active clip name while recording, so
-the module derives the previous completed clip when the camera is not actively
-recording.
+`Upload Latest Recording` uploads the latest completed main recording while the
+camera is in standby or ready. Stop recording and allow it to finish finalizing
+before using this action. The camera reports the next clip name, so the module
+derives the previous clip from its numeric counter. Custom naming schemes without
+a trailing numeric counter require the explicit `Upload Clip` action.
 
 Proxy clip names are not reported by that camera method, so `Upload Latest Recording`
 does not upload proxy clips.
@@ -74,7 +75,9 @@ camera, media, and recording format.
 
 Feedbacks and variables use the camera state cached by the module. With
 notifications enabled, the module updates this cache when the camera reports
-changes. The module also refreshes startup data when it connects.
+changes. The module refreshes state after every connection or reconnection. Actions
+are unavailable until that refresh finishes. State that has not been fetched
+successfully is left unknown rather than reported as a default camera value.
 
 Useful dedicated feedbacks include:
 

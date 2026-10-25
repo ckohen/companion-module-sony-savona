@@ -27,7 +27,7 @@ export const systemAlertActive = createModuleBooleanFeedback<ReturnType<typeof g
 			color: combineRgb(255, 255, 255),
 		},
 		callback(companionModule, feedback) {
-			const client = getConnectedClient(companionModule);
+			const client = getConnectedClient(companionModule, 'systemMessages');
 			if (!client) return false;
 
 			const severity = feedback.options.severity?.toString();

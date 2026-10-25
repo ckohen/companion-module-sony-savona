@@ -1,11 +1,11 @@
 import type { CompanionVariableDefinitions, CompanionVariableValue, DropdownChoice } from '@companion-module/base';
-import type { SavonaClient, UploadJob } from '@ckohen/savona';
+import type { SavonaClient, SavonaStructureName, UploadJob } from '@ckohen/savona';
 import type { ModuleInstance } from '../main.js';
 
 export interface VariableDescriptor {
 	id: string;
 	name: string;
-	facetId: string;
+	facetId: SavonaStructureName;
 	include?: (companionModule: ModuleInstance) => boolean;
 	getValue(client: SavonaClient, companionModule: ModuleInstance): CompanionVariableValue;
 }
@@ -136,31 +136,31 @@ export const variableDescriptors: readonly VariableDescriptor[] = [
 	{
 		id: 'battery_type',
 		name: 'Battery Type',
-		facetId: 'battery',
+		facetId: 'mainBattery',
 		getValue: (client) => client.mainBattery.type,
 	},
 	{
 		id: 'battery_percentage',
 		name: 'Battery Percentage',
-		facetId: 'battery',
+		facetId: 'mainBattery',
 		getValue: (client) => client.mainBattery.percentage,
 	},
 	{
 		id: 'battery_voltage',
 		name: 'Battery Voltage',
-		facetId: 'battery',
+		facetId: 'mainBattery',
 		getValue: (client) => client.mainBattery.voltage,
 	},
 	{
 		id: 'battery_minutes',
 		name: 'Battery Minutes',
-		facetId: 'battery',
+		facetId: 'mainBattery',
 		getValue: (client) => client.mainBattery.minute,
 	},
 	{
 		id: 'battery_display',
 		name: 'Battery Display',
-		facetId: 'battery',
+		facetId: 'mainBattery',
 		getValue: (client) => client.mainBattery.display,
 	},
 	{
@@ -371,19 +371,19 @@ export const variableDescriptors: readonly VariableDescriptor[] = [
 	{
 		id: 'nd_enabled',
 		name: 'ND Enabled',
-		facetId: 'nd',
+		facetId: 'ND',
 		getValue: (client) => client.ND.enabled,
 	},
 	{
 		id: 'nd_value',
 		name: 'ND Value',
-		facetId: 'nd',
+		facetId: 'ND',
 		getValue: (client) => client.ND.value,
 	},
 	{
 		id: 'nd_mode',
 		name: 'ND Mode',
-		facetId: 'nd',
+		facetId: 'ND',
 		getValue: (client) => client.ND.mode,
 	},
 	{
@@ -650,16 +650,18 @@ export function getVariableDefinitions(companionModule: ModuleInstance): Compani
 
 export function getVariableValues(
 	companionModule: ModuleInstance,
-	facetIds?: Iterable<string>,
+	facetIds?: Iterable<SavonaStructureName>,
 ): Record<string, CompanionVariableValue> {
-	const client = companionModule.client;
-	if (!client || String(client.state) !== 'connected') return getClearedVariableValues(companionModule);
+	const client = companionModule.readyClient;
+	if (!client) return getClearedVariableValues(companionModule);
 
 	const facets = facetIds === undefined ? undefined : new Set(facetIds);
 	const values: Record<string, CompanionVariableValue> = {};
 	for (const variable of getIncludedVariableDescriptors(companionModule)) {
 		if (facets !== undefined && !facets.has(variable.facetId)) continue;
-		values[variable.id] = variable.getValue(client, companionModule);
+		values[variable.id] = companionModule.cacheCoordinator.isInitialized(variable.facetId)
+			? variable.getValue(client, companionModule)
+			: undefined;
 	}
 	return values;
 }
@@ -683,10 +685,13 @@ export function getVariableValue(
 	companionModule: ModuleInstance,
 	variableId: string | undefined,
 ): CompanionVariableValue {
-	if (!variableId || !companionModule.client || String(companionModule.client.state) !== 'connected') return undefined;
+	const client = companionModule.readyClient;
+	if (!variableId || !client) return undefined;
 
 	const variable = getIncludedVariableDescriptors(companionModule).find((descriptor) => descriptor.id === variableId);
-	return variable?.getValue(companionModule.client, companionModule);
+	return variable && companionModule.cacheCoordinator.isInitialized(variable.facetId)
+		? variable.getValue(client, companionModule)
+		: undefined;
 }
 
 function getIncludedVariableDescriptors(companionModule: ModuleInstance): readonly VariableDescriptor[] {

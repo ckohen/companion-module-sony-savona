@@ -1,6 +1,9 @@
+import type { SavonaStructureName } from '@ckohen/savona';
 import type { ModuleInstance } from '../main.js';
 
-export function getConnectedClient(companionModule: ModuleInstance): NonNullable<ModuleInstance['client']> | null {
-	const client = companionModule.client;
-	return String(client?.state) === 'connected' ? client : null;
+export function getConnectedClient(
+	companionModule: ModuleInstance,
+	facetId: SavonaStructureName,
+): NonNullable<ModuleInstance['client']> | null {
+	return companionModule.cacheCoordinator.isInitialized(facetId) ? companionModule.readyClient : null;
 }

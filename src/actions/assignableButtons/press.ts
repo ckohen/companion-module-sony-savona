@@ -48,7 +48,7 @@ export const pressAssignableButton = createModuleAction<ReturnType<typeof genera
 				const assignment = parseAssignment(action.options.assignment);
 
 				if (!assignment) {
-					await pressAssignableButtonId(companionModule, buttonId);
+					await client.assignableButtons.press(buttonId);
 					return;
 				}
 
@@ -59,6 +59,7 @@ export const pressAssignableButton = createModuleAction<ReturnType<typeof genera
 				}
 
 				await client.assignableButtons.fetchValues();
+				companionModule.cacheCoordinator.markUpdated(client, 'assignableButtons');
 				const previousAssignment = optionalText(client.assignableButtons.buttons.get(buttonId)?.value);
 				if (action.options.restoreAssignment === true && !previousAssignment) {
 					throw new Error(`Unable to determine current assignment for Assignable ${buttonId}`);
@@ -73,7 +74,7 @@ export const pressAssignableButton = createModuleAction<ReturnType<typeof genera
 						changedAssignment = true;
 					}
 
-					await pressAssignableButtonId(companionModule, buttonId);
+					await client.assignableButtons.press(buttonId);
 				} catch (error) {
 					actionError = toError(error);
 				} finally {
@@ -133,13 +134,6 @@ function parseButtonId(value: string | number | undefined): number {
 function parseAssignment(value: string | number | undefined): string | undefined {
 	if (value === undefined || value === currentAssignmentId) return undefined;
 	return optionalText(value.toString());
-}
-
-async function pressAssignableButtonId(companionModule: ModuleInstance, buttonId: number): Promise<void> {
-	const client = companionModule.client;
-	if (!client) throw new Error('Savona client is not connected');
-
-	await client.button.sendKeys({ params: [[`Assignable.${buttonId}`]] });
 }
 
 function toError(error: unknown): Error {

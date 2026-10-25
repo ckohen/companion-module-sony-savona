@@ -6,9 +6,9 @@ export async function runSavonaAction(
 	actionName: string,
 	callback: (client: SavonaClient) => unknown | Promise<unknown>,
 ): Promise<void> {
-	const client = companionModule.client;
+	const client = companionModule.readyClient;
 	if (!client) {
-		companionModule.log('warn', `Cannot ${actionName}: Savona client is not connected`);
+		companionModule.log('warn', `Cannot ${actionName}: camera is disconnected or initializing`);
 		return;
 	}
 
@@ -22,13 +22,6 @@ export async function runSavonaAction(
 export function optionalText(value: string | undefined): string | undefined {
 	const trimmed = value?.trim();
 	return trimmed ? trimmed : undefined;
-}
-
-export function parseNumberList(value: string | undefined): number[] {
-	return (value ?? '')
-		.split(/[\s,]+/)
-		.map((entry) => Number(entry.trim()))
-		.filter((entry) => Number.isInteger(entry));
 }
 
 function formatError(error: unknown): string {

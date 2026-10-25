@@ -6,23 +6,33 @@ const generated = await generateEslintConfig({
 	ignores: ['.prettierrc.js', 'build-config.cjs'],
 });
 
-export default tseslint.config(...generated, {
-	rules: {
-		'@typescript-eslint/explicit-member-accessibility': 'error',
-		'@typescript-eslint/promise-function-async': 'error',
-		'require-await': 'off',
-		'@typescript-eslint/require-await': 'error',
-	},
-	languageOptions: {
-		parserOptions: {
-			project: ['tsconfig.eslint.json'],
+export default tseslint.config(
+	...generated,
+	{
+		rules: {
+			'@typescript-eslint/explicit-member-accessibility': 'error',
+			'@typescript-eslint/promise-function-async': 'error',
+			'require-await': 'off',
+			'@typescript-eslint/require-await': 'error',
 		},
-	},
-	settings: {
-		'import/resolver': {
-			typescript: {
+		languageOptions: {
+			parserOptions: {
 				project: ['tsconfig.eslint.json'],
 			},
 		},
+		settings: {
+			'import/resolver': {
+				typescript: {
+					project: ['tsconfig.eslint.json'],
+				},
+			},
+		},
 	},
-});
+	{
+		files: ['test/**/*.mjs'],
+		rules: {
+			'@typescript-eslint/require-await': 'off',
+			'n/no-unpublished-import': 'off',
+		},
+	},
+);

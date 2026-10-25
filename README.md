@@ -19,12 +19,14 @@ Useful commands:
 yarn dev
 yarn build
 yarn lint
+yarn test
 yarn package
 ```
 
 - `yarn dev` runs TypeScript in watch mode.
 - `yarn build` compiles the module to `dist`.
 - `yarn lint` runs ESLint and Prettier checks.
+- `yarn test` builds the module and runs regression tests with Node's test runner.
 - `yarn package` builds a Companion package archive.
 
 The module manifest targets Companion's `node26` runtime. The local development
@@ -44,6 +46,12 @@ toolchain is managed by Yarn and the Companion module tools declared in
 ## Notes
 
 `ModuleInstance.client` is the active `SavonaClient` instance. Prefer using that shared client and the cache coordinator rather than introducing separate state registries.
+
+`ModuleInstance.readyClient` is available after authentication and the initial state
+refresh, and should be used for camera actions. The coordinator listens for
+`SavonaEvent.CacheUpdate` to publish completed cache updates. Explicit fetches must
+still be awaited before publishing. It tracks which structures have initialized,
+but all camera values remain in the Savona client.
 
 The action and feedback helper types are intentionally a little richer than this module currently needs. They wrap Companion API 2.1 features such as typed action results, subscribe hooks, value feedbacks, advanced feedback `affectedProperties`, and callback abort signals so new actions and feedbacks remain easy to write.
 

@@ -8,7 +8,6 @@ import { getUploadSettingOptionData, parseUploadSettingId } from '../uploadSetti
 const autoDriveId = 'auto';
 type LatestRecordingDriveId = Exclude<MediaDriveId, 'media.3'>;
 const autoSearchDriveIds = ['media.1', 'media.2'] as const satisfies LatestRecordingDriveId[];
-const activeRecordingStatuses = new Set<RecordStatus>(['Recording', 'RecordingWithCall', 'RecPausing', 'Stopping']);
 
 function generateOptions(companionModule: ModuleInstance) {
 	const uploadSettingOptionData = getUploadSettingOptionData(companionModule);
@@ -45,18 +44,23 @@ function generateOptions(companionModule: ModuleInstance) {
 export const uploadLatestRecording = createModuleAction<ReturnType<typeof generateOptions>>(
 	{
 		name: 'Upload Latest Recording',
-		description: 'Fetches the camera clip counter and uploads the previous completed main clip from media.',
+		description:
+			'Uploads the previous completed main clip. The camera must be in standby or ready, with recording finalized.',
 		async callback(companionModule, action) {
 			await runSavonaAction(companionModule, 'uploading latest recording', async (client) => {
 				const [cameraClipName, clipInfo] = await Promise.all([
 					client.clipInfo.fetchName(),
 					client.clipInfo.fetchValue(),
 				]);
+				companionModule.cacheCoordinator.markUpdated(client, 'clipInfo');
 				const clipName = getCompletedClipName(optionalText(cameraClipName), clipInfo.status);
 
 				const driveIds = getSearchDriveIds(action.options.driveId);
 				for (const driveId of driveIds) {
 					const clips = await client.mediaCards.fetchClips(driveId);
+					if (companionModule.cacheCoordinator.isInitialized('mediaCards')) {
+						companionModule.cacheCoordinator.markUpdated(client, 'mediaCards');
+					}
 					const clip = clips.find((entry) => entry.name === clipName);
 					if (clip) {
 						const uploadSettingId = parseUploadSettingId(action.options.uploadSettingId);
@@ -73,7 +77,11 @@ export const uploadLatestRecording = createModuleAction<ReturnType<typeof genera
 
 function getCompletedClipName(cameraClipName: string | undefined, status: RecordStatus | undefined): string {
 	if (!cameraClipName) throw new Error('Camera clip name is not available');
-	if (status !== undefined && activeRecordingStatuses.has(status)) return cameraClipName;
+	if (status !== 'Standby' && status !== 'Ready') {
+		throw new Error(
+			`Wait for recording to finish before uploading the latest clip (camera state: ${status ?? 'unknown'})`,
+		);
+	}
 
 	const previousClipName = previousClipNameFromNextName(cameraClipName);
 	if (!previousClipName) {
@@ -91,7 +99,7 @@ function previousClipNameFromNextName(clipName: string): string | undefined {
 	if (prefix === undefined || counterText === undefined) return undefined;
 
 	const counter = Number(counterText);
-	if (!Number.isInteger(counter) || counter <= 0) return undefined;
+	if (!Number.isSafeInteger(counter) || counter <= 0) return undefined;
 
 	return `${prefix}${String(counter - 1).padStart(counterText.length, '0')}`;
 }

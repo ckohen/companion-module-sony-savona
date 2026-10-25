@@ -8,6 +8,7 @@ export const clearCompletedUploadJobs = createModuleAction<typeof options>(
 		name: 'Clear Completed Upload Jobs',
 		async callback(companionModule) {
 			await runSavonaAction(companionModule, 'clearing completed upload jobs', async (client) => {
+				await client.uploadJobs.fetchValue();
 				await client.uploadJobs.clearCompletedJobs();
 			});
 		},

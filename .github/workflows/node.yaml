@@ -33,6 +33,8 @@ jobs:
       - name: Run lint
         run: |
           yarn lint
+      - name: Run regression tests
+        run: yarn test
 
   # Uncomment this to enable running unit tests
   # test:

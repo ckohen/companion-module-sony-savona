@@ -1,10 +1,9 @@
-import type { SavonaClient } from '@ckohen/savona';
+import { SavonaEvent, type SavonaClient, type SavonaStructureName } from '@ckohen/savona';
 import type { ModuleInstance } from '../main.js';
 import { cacheFacets, type CacheFacet } from './facets.js';
 import { getClearedVariableValues, getVariableValues } from './variables.js';
 
-const defaultFlushDelayMs = 50;
-const definitionFacetIds = new Set(['actionChoices', 'assignableButtons', 'uploadSettings']);
+const definitionFacetIds = new Set<SavonaStructureName>(['assignableButtons', 'uploadSettings']);
 const stateFeedbackIds = [
 	'recordingState',
 	'uploadJobState',
@@ -17,9 +16,10 @@ const stateFeedbackIds = [
 
 export class CacheCoordinator {
 	private client: SavonaClient | null = null;
-	private readonly disposeListeners: (() => void)[] = [];
-	private readonly dirtyFacetIds = new Set<string>();
-	private flushTimer: NodeJS.Timeout | null = null;
+	private disposeListener: (() => void) | null = null;
+	private readonly initializedFacets = new Set<SavonaStructureName>();
+	private readonly publishTimers = new Map<SavonaStructureName, NodeJS.Timeout>();
+	private generation = 0;
 
 	public constructor(private readonly companionModule: ModuleInstance) {}
 
@@ -27,43 +27,35 @@ export class CacheCoordinator {
 		this.unbind();
 		this.client = client;
 
-		const valueFacets = new Map<string, CacheFacet[]>();
-		const statusFacets = new Map<string, CacheFacet[]>();
-		const processFacets = new Map<string, CacheFacet[]>();
-		for (const facet of this.includedFacets()) {
-			for (const property of facet.notifications?.value ?? []) {
-				addFacet(valueFacets, property, facet);
+		const onCacheUpdate = (structure: SavonaStructureName): void => {
+			if (this.client !== client || String(client.state) !== 'connected') return;
+			const facet = this.includedFacets().find((entry) => entry.id === structure);
+			// Notifications can update only one field, so they cannot establish a complete initial snapshot.
+			if (!facet || !this.initializedFacets.has(structure)) return;
+			if (facet.throttleMs === undefined) {
+				this.publish([structure]);
+			} else if (!this.publishTimers.has(structure)) {
+				const timer = setTimeout(() => {
+					this.publishTimers.delete(structure);
+					this.publish([structure]);
+				}, facet.throttleMs);
+				timer.unref();
+				this.publishTimers.set(structure, timer);
 			}
-			for (const property of facet.notifications?.status ?? []) {
-				addFacet(statusFacets, property, facet);
-			}
-			for (const property of facet.notifications?.process ?? []) {
-				addFacet(processFacets, property, facet);
-			}
-		}
-
-		for (const [property, facets] of valueFacets) {
-			this.listen(client.notifications.propertyValueChanged, property, facets);
-		}
-		for (const [property, facets] of statusFacets) {
-			this.listen(client.notifications.propertyStatusChanged, property, facets);
-		}
-		for (const [property, facets] of processFacets) {
-			this.listen(client.notifications.process, property, facets);
-		}
+		};
+		client.on(SavonaEvent.CacheUpdate, onCacheUpdate);
+		this.disposeListener = () => client.off(SavonaEvent.CacheUpdate, onCacheUpdate);
 	}
 
 	public unbind(): void {
-		for (const dispose of this.disposeListeners) {
-			dispose();
-		}
-		this.disposeListeners.length = 0;
-		if (this.flushTimer) {
-			clearTimeout(this.flushTimer);
-			this.flushTimer = null;
-		}
-		this.dirtyFacetIds.clear();
+		this.disposeListener?.();
+		this.disposeListener = null;
+		this.reset();
 		this.client = null;
+	}
+
+	public isInitialized(facetId: SavonaStructureName): boolean {
+		return this.initializedFacets.has(facetId);
 	}
 
 	public async refreshAll(options: { publish?: boolean } = {}): Promise<void> {
@@ -73,34 +65,40 @@ export class CacheCoordinator {
 		);
 	}
 
-	public async refresh(facetIds: Iterable<string>, options: { publish?: boolean } = {}): Promise<void> {
-		const publish = options.publish ?? true;
+	public async refresh(facetIds: Iterable<SavonaStructureName>, options: { publish?: boolean } = {}): Promise<void> {
 		const requestedIds = new Set(facetIds);
-		const requestedFacets = this.includedFacets().filter((facet) => requestedIds.has(facet.id) && facet.fetch);
+		const requestedFacets = this.includedFacets().filter((facet) => requestedIds.has(facet.id));
 		const client = this.client;
+		const generation = this.generation;
 		if (!client) return;
 
 		const results = await Promise.allSettled(
 			requestedFacets.map(async (facet) => {
 				try {
-					await facet.fetch?.(client);
+					await facet.fetch(client);
+					return facet.id;
 				} catch (error) {
 					throw new Error(`Unable to fetch ${facet.name}: ${formatError(error)}`, { cause: error });
 				}
 			}),
 		);
+		if (this.client !== client || this.generation !== generation) return;
 
 		for (const result of results) {
-			if (result.status === 'rejected') {
+			if (result.status === 'fulfilled') {
+				this.initializedFacets.add(result.value);
+			} else {
 				this.companionModule.log('warn', formatError(result.reason));
 			}
 		}
 
-		if (publish) this.publish(requestedIds);
+		if (options.publish ?? true) this.publish(requestedIds);
 	}
 
-	public markUpdated(...facetIds: string[]): void {
-		this.queue(facetIds, defaultFlushDelayMs);
+	public markUpdated(client: SavonaClient, ...facetIds: SavonaStructureName[]): void {
+		if (this.client !== client || String(client.state) !== 'connected') return;
+		for (const facetId of facetIds) this.initializedFacets.add(facetId);
+		this.publish(facetIds);
 	}
 
 	public publishAll(): void {
@@ -108,55 +106,23 @@ export class CacheCoordinator {
 	}
 
 	public clearVariables(): void {
+		this.reset();
 		this.companionModule.setVariableValues(getClearedVariableValues(this.companionModule));
 		this.checkStateFeedbacks();
 	}
 
-	private listen(
-		emitter: SavonaClient['notifications']['propertyValueChanged'],
-		property: string,
-		facets: readonly CacheFacet[],
-	): void {
-		const delayMs = Math.min(...facets.map((facet) => facet.throttleMs ?? defaultFlushDelayMs));
-		const listener = (): void =>
-			this.queue(
-				facets.map((facet) => facet.id),
-				delayMs,
-			);
-		emitter.on(property, listener);
-		this.disposeListeners.push(() => emitter.removeListener(property, listener));
+	private reset(): void {
+		this.generation++;
+		this.initializedFacets.clear();
+		for (const timer of this.publishTimers.values()) clearTimeout(timer);
+		this.publishTimers.clear();
 	}
 
-	private queue(facetIds: Iterable<string>, delayMs: number): void {
-		for (const facetId of facetIds) {
-			this.dirtyFacetIds.add(facetId);
-		}
-		if (this.flushTimer) return;
-
-		this.flushTimer = setTimeout(() => {
-			this.flushTimer = null;
-			this.flush();
-		}, delayMs);
-		this.flushTimer.unref();
-	}
-
-	private flush(): void {
-		const facetIds = new Set(this.dirtyFacetIds);
-		this.dirtyFacetIds.clear();
-		if (facetIds.size === 0) return;
-
-		this.publish(facetIds);
-	}
-
-	private publish(facetIds: Iterable<string>): void {
+	private publish(facetIds: Iterable<SavonaStructureName>): void {
+		if (!this.client || this.companionModule.readyClient !== this.client) return;
 		const publishedFacetIds = new Set(facetIds);
-		if (!this.client) return;
-
-		for (const facetId of publishedFacetIds) {
-			if (definitionFacetIds.has(facetId)) {
-				this.companionModule.updateCompanionDefinitions();
-				break;
-			}
+		if ([...publishedFacetIds].some((facetId) => definitionFacetIds.has(facetId))) {
+			this.companionModule.updateCompanionDefinitions();
 		}
 		this.companionModule.setVariableValues(getVariableValues(this.companionModule, publishedFacetIds));
 		this.checkStateFeedbacks();
@@ -168,15 +134,6 @@ export class CacheCoordinator {
 
 	private checkStateFeedbacks(): void {
 		this.companionModule.checkFeedbacks(...stateFeedbackIds);
-	}
-}
-
-function addFacet(facetsByProperty: Map<string, CacheFacet[]>, property: string, facet: CacheFacet): void {
-	const facets = facetsByProperty.get(property);
-	if (facets) {
-		facets.push(facet);
-	} else {
-		facetsByProperty.set(property, [facet]);
 	}
 }
 

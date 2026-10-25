@@ -1,10 +1,16 @@
 import type { UploadJob } from '@ckohen/savona';
-import { parseNumberList } from '../_util.js';
 
 export function getSpecificUploadJobIds(value: string | undefined): number[] {
-	const ids = parseNumberList(value);
-	if (!ids.length) throw new Error('At least one upload job ID is required');
-	return ids;
+	const entries = value?.split(/[\s,]+/).filter(Boolean) ?? [];
+	if (!entries.length) throw new Error('At least one upload job ID is required');
+	const ids = entries.map((entry) => {
+		const id = Number(entry);
+		if (!/^\d+$/.test(entry) || !Number.isSafeInteger(id)) {
+			throw new Error(`Invalid upload job ID: ${entry}`);
+		}
+		return id;
+	});
+	return [...new Set(ids)];
 }
 
 export function getUploadJobIds(jobs: Iterable<UploadJob>, predicate: (job: UploadJob) => boolean): number[] {

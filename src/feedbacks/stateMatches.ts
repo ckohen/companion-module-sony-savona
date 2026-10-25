@@ -46,7 +46,9 @@ export const stateMatches = createModuleBooleanFeedback<ReturnType<typeof genera
 			color: combineRgb(255, 255, 255),
 		},
 		callback(companionModule, feedback) {
-			const actual = valueToString(getVariableValue(companionModule, feedback.options.variableId?.toString()));
+			const value = getVariableValue(companionModule, feedback.options.variableId?.toString());
+			if (value === undefined || value === null) return false;
+			const actual = valueToString(value);
 			const expected = feedback.options.expectedValue ?? '';
 
 			switch (feedback.options.operator) {
@@ -55,9 +57,12 @@ export const stateMatches = createModuleBooleanFeedback<ReturnType<typeof genera
 				case 'contains':
 					return actual.includes(expected);
 				case 'greaterThan':
-					return Number(actual) > Number(expected);
 				case 'lessThan':
-					return Number(actual) < Number(expected);
+					if (!actual.trim() || !expected.trim()) return false;
+					if (!Number.isFinite(Number(actual)) || !Number.isFinite(Number(expected))) return false;
+					return feedback.options.operator === 'greaterThan'
+						? Number(actual) > Number(expected)
+						: Number(actual) < Number(expected);
 				case 'equals':
 				default:
 					return actual === expected;

@@ -12,6 +12,7 @@
 		"eslint.config.mjs",
 		"bin",
 		"scripts",
+		"test/**/*.mjs",
 		"__tests__",
 		"__mocks__"
 	],

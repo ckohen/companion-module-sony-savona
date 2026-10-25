@@ -33,7 +33,7 @@ export const uploadJobState = createModuleBooleanFeedback<ReturnType<typeof gene
 			color: combineRgb(255, 255, 255),
 		},
 		callback(companionModule, feedback) {
-			const client = getConnectedClient(companionModule);
+			const client = getConnectedClient(companionModule, 'uploadJobs');
 			if (!client) return false;
 
 			const jobs = [...client.uploadJobs.jobs.values()];

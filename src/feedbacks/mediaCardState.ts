@@ -55,7 +55,7 @@ export const mediaCardState = createModuleBooleanFeedback<ReturnType<typeof gene
 			color: combineRgb(255, 255, 255),
 		},
 		callback(companionModule, feedback) {
-			const client = getConnectedClient(companionModule);
+			const client = getConnectedClient(companionModule, 'mediaCards');
 			if (!client) return false;
 
 			const cards = getSelectedCards(client.mediaCards.cards, feedback.options.card?.toString());

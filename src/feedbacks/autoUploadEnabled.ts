@@ -15,7 +15,7 @@ export const autoUploadEnabled = createModuleBooleanFeedback<ReturnType<typeof g
 			color: combineRgb(255, 255, 255),
 		},
 		callback(companionModule) {
-			const client = getConnectedClient(companionModule);
+			const client = getConnectedClient(companionModule, 'autoUpload');
 			return client?.autoUpload.enabled === true;
 		},
 	},

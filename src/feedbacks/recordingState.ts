@@ -31,7 +31,7 @@ export const recordingState = createModuleBooleanFeedback<ReturnType<typeof gene
 			color: combineRgb(255, 255, 255),
 		},
 		callback(companionModule, feedback) {
-			const client = getConnectedClient(companionModule);
+			const client = getConnectedClient(companionModule, 'record');
 			if (!client) return false;
 
 			const status = client.record.status;
